@@ -1,0 +1,15 @@
+{
+    "root": true,
+    "parserOptions": {
+        "sourceType": "module",
+        "ecmaVersion": 2015,
+        "requireConfigFile": false
+    },
+    "parser": "@babel/eslint-parser",
+    "env": {
+        "browser": true
+    },
+    "extends": [
+        "eslint:recommended"
+    ]
+}
