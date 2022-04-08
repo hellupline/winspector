@@ -73,6 +73,9 @@ func NewRecordData(r *http.Request) RecordData {
 	}
 	headers := PairList{}
 	for k, vArr := range r.Header {
+		if _, ok := headersIgnoreList[k]; ok {
+			break
+		}
 		for _, v := range vArr {
 			headers = append(headers, Pair{k, v})
 		}
@@ -105,3 +108,14 @@ func NewRecordData(r *http.Request) RecordData {
 		body:             body,
 	}
 }
+
+var (
+	headersIgnoreList = map[string]bool{
+		"x-forwarded-for":    true,
+		"x-forwarded-host":   true,
+		"x-forwarded-port":   true,
+		"x-forwarded-proto":  true,
+		"x-forwarded-server": true,
+		"x-real-ip":          true,
+	}
+)
