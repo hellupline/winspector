@@ -99,7 +99,7 @@ const NavBar = ({ binKey, setBinKey, reloadBin, newBin }) => {
             <div class="justify-content-center justify-content-lg-start align-items-center d-flex flex-wrap">
                 <ul class="col-12 col-lg-auto nav justify-content-center me-lg-auto mb-2 mb-md-0">
                     <li class="d-md-none d-lg-block">
-                        <a href="https://github.com/hellupline/winspector" class="nav-link px-2 text-white"> Winspector </a>
+                        <a href="https://github.com/hellupline/winspector" class="nav-link px-2 text-white"> wInspector </a>
                     </li>
                 </ul>
                 <form class="col-12 col-lg-auto mb-3 mb-lg-0 me-lg-3">
