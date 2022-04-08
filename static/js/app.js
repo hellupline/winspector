@@ -3,7 +3,7 @@
 import { htm, h, useState, useEffect, useRef, render } from '/static/js/modules.js';
 
 const baseHostname = 'pomegranate-winspector.haematite.dev';
-const baseEndpoint = `https://${baseEndpoint}`;
+const baseEndpoint = `https://${baseHostname}`;
 
 const html = htm.bind(h);
 
