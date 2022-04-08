@@ -61,7 +61,7 @@ func httpMiddlewares(r http.Handler) http.Handler {
 	handler := r
 	handler = recoveryHandler(handler)
 	handler = cordsHandler(handler)
-	handler = handlers.CombinedLoggingHandler(os.Stdout, handler)
+	// handler = handlers.CombinedLoggingHandler(os.Stdout, handler)
 	handler = handlers.CompressHandler(handler)
 	return handler
 }
