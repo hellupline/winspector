@@ -249,7 +249,7 @@ const RequestTable = ({ record }) => {
     const date = d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const time = d.toLocaleTimeString('ja-JP', { hour12: false });
     return html`
-        <h5 style="min-width: 200px;">request details</h5>
+        <h5 class="detail-header">request details</h5>
         <hr />
         <div class="table-responsive">
             <table class="table table-striped table-hover table-sm">
@@ -288,7 +288,7 @@ const KeyValueTable = ({ items, title }) => {
         return null;
     }
     return html`
-        <h5 style="min-width: 200px;">${title}</h5>
+        <h5 class="detail-header">${title}</h5>
         <hr />
         <div class="table-responsive">
             <table class="table table-striped table-hover table-sm">
@@ -318,7 +318,7 @@ const RequestBody = ({ body }) => {
         console.log('request body is not json');
     }
     return html`
-        <h5 style="min-width: 200px;">body</h5>
+        <h5 class="detail-header">body</h5>
         <div class="border rounded-3 bg-light p-3">
             <pre class="m-0">
                 ${body}
