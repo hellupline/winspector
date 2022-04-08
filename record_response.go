@@ -52,26 +52,25 @@ type RecordResponse struct {
 	ContentLength    int64            `json:"content_lenght"`
 	Headers          PairResponseList `json:"headers"`
 	Query            PairResponseList `json:"query"`
-	FormData         PairResponseList `json:"form_data"`
+	PostFormData     PairResponseList `json:"post_form_data"`
 	Body             string           `json:"body"`
 }
 
 func NewRecordResponse(record Record) RecordResponse {
 	headers := make(PairResponseList, 0, len(record.recordData.headers))
 	for _, p := range record.recordData.headers {
-		pairResponse := PairResponse{
-			Key:   p.key,
-			Value: p.value,
-		}
+		pairResponse := PairResponse{Key: p.key, Value: p.value}
 		headers = append(headers, pairResponse)
 	}
 	query := make(PairResponseList, 0, len(record.recordData.query))
 	for _, p := range record.recordData.query {
-		pairResponse := PairResponse{
-			Key:   p.key,
-			Value: p.value,
-		}
+		pairResponse := PairResponse{Key: p.key, Value: p.value}
 		query = append(query, pairResponse)
+	}
+	postFormData := make(PairResponseList, 0, len(record.recordData.postFormData))
+	for _, p := range record.recordData.postFormData {
+		pairResponse := PairResponse{Key: p.key, Value: p.value}
+		postFormData = append(postFormData, pairResponse)
 	}
 	recordResponse := RecordResponse{
 		BinKey:           record.binKey.String(),
@@ -80,12 +79,14 @@ func NewRecordResponse(record Record) RecordResponse {
 		Method:           record.recordData.method,
 		URL:              record.recordData.uRL,
 		Proto:            record.recordData.proto,
+		Host:             record.recordData.host,
 		RemoteAddr:       record.recordData.remoteAddr,
+		RequestURI:       record.recordData.requestURI,
 		TransferEncoding: record.recordData.transferEncoding,
 		ContentLength:    record.recordData.contentLength,
 		Headers:          headers,
 		Query:            query,
-		FormData:         nil,
+		PostFormData:     postFormData,
 		Body:             string(record.recordData.body),
 	}
 	return recordResponse

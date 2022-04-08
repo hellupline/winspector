@@ -32,7 +32,9 @@ const App = ({ initialBinKey }) => {
     useEffect(async () => {
         const data = await reloadBin();
         const { records } = data;
-        if (records.length > 0) { setRecordKey(records[0].record_key); }
+        if (records.length > 0) {
+            setRecordKey(records[0].record_key);
+        }
     }, [binKey]);
 
     useEffect(async () => {
@@ -52,7 +54,6 @@ const App = ({ initialBinKey }) => {
             }
         };
         socket.onerror = (error) => { console.log(`[error] ${error.message}`); };
-
         return () => { socket.close(); }
     }, [binKey]);
 
@@ -95,7 +96,7 @@ const NavBar = ({ binKey, setBinKey, reloadBin, newBin }) => {
             <div class="justify-content-center justify-content-lg-start align-items-center d-flex flex-wrap">
                 <ul class="col-12 col-lg-auto nav justify-content-center me-lg-auto mb-2 mb-md-0">
                     <li class="d-md-none d-lg-block">
-                        <a href="https://hellupline.dev" class="nav-link px-2 text-white"> Winspector </a>
+                        <a href="https://github.com/hellupline/winspector" class="nav-link px-2 text-white"> Winspector </a>
                     </li>
                 </ul>
                 <form class="col-12 col-lg-auto mb-3 mb-lg-0 me-lg-3">
@@ -206,7 +207,7 @@ const RecordDetail = ({ record }) => {
     if (record === null) {
         return null;
     }
-    const { headers, query, body } = record;
+    const { headers, query, post_form_data: postFormData, body } = record;
     return html`
         <div class="container-fluid pt-3">
             <div class="row justify-content-center">
@@ -218,6 +219,9 @@ const RecordDetail = ({ record }) => {
                 </div>
                 <div class="col">
                     <${KeyValueTable} items=${query} title="query" />
+                </div>
+                <div class="col">
+                    <${KeyValueTable} items=${postFormData} title="post form data" />
                 </div>
             </div>
             <div class="row justify-content-center">
@@ -243,7 +247,6 @@ const RequestTable = ({ record }) => {
     const date = d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const time = d.toLocaleTimeString('ja-JP', { hour12: false });
     return html`
-        <pre>${JSON.stringify(record, null, 4)}</pre>
         <h5>request details</h5>
         <hr />
         <div class="table-responsive">
@@ -313,13 +316,16 @@ const RequestBody = ({ body }) => {
     }
     try {
         body = JSON.stringify(JSON.parse(body), null, 4);
-        body = html`<pre class="m-0">${body}</pre>`;
     } catch(e) {
         console.log('request body is not json');
     }
     return html`
         <h5>body</h5>
-        <div class="border rounded-3 bg-light p-3"> ${body} </div>
+        <div class="border rounded-3 bg-light p-3">
+            <pre class="m-0">
+                ${body}
+            </pre>
+        </div>
     `;
 };
 

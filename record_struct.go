@@ -38,7 +38,7 @@ type RecordData struct {
 	contentLength    int64
 	headers          PairList
 	query            PairList
-	formData         PairList
+	postFormData     PairList
 	body             []byte
 }
 
@@ -70,11 +70,9 @@ func NewRecordData(r *http.Request) RecordData {
 		log.Println(err)
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
-
-	// if err := r.ParseMultipartForm(32 << 20); err != nil {
-	// 	log.Println(err)
-	// }
-
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		log.Println(err)
+	}
 	headers := PairList{}
 	for k, vArr := range r.Header {
 		for _, v := range vArr {
@@ -82,7 +80,6 @@ func NewRecordData(r *http.Request) RecordData {
 		}
 	}
 	sort.Sort(headers)
-
 	query := PairList{}
 	for k, vArr := range r.URL.Query() {
 		for _, v := range vArr {
@@ -90,15 +87,13 @@ func NewRecordData(r *http.Request) RecordData {
 		}
 	}
 	sort.Sort(query)
-
-	formData := PairList{}
+	postFormData := PairList{}
 	for k, vArr := range r.PostForm {
 		for _, v := range vArr {
-			formData = append(formData, Pair{k, v})
+			postFormData = append(postFormData, Pair{k, v})
 		}
 	}
-	sort.Sort(formData)
-
+	sort.Sort(postFormData)
 	return RecordData{
 		method:           r.Method,
 		uRL:              r.URL.String(),
@@ -110,7 +105,7 @@ func NewRecordData(r *http.Request) RecordData {
 		contentLength:    r.ContentLength,
 		headers:          headers,
 		query:            query,
-		formData:         formData,
+		postFormData:     postFormData,
 		body:             body,
 	}
 }
