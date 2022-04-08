@@ -2,6 +2,9 @@
 // import {...} from 'https://npm.reversehttp.com/preact,preact/hooks,htm';
 import { htm, h, useState, useEffect, useRef, render } from '/static/js/modules.js';
 
+const baseHostname = 'pomegranate-winspector.haematite.dev';
+const baseEndpoint = `https://${baseEndpoint}`;
+
 const html = htm.bind(h);
 
 const App = ({ initialBinKey }) => {
@@ -41,7 +44,7 @@ const App = ({ initialBinKey }) => {
         if (ws.current !== null) {
             ws.current.close();
         }
-        const socket = new WebSocket(`ws://localhost:8000/bin/${binKey}/watch`);
+        const socket = new WebSocket(`ws://${baseHostname}/bin/${binKey}/watch`);
         ws.current = socket;
         socket.onopen = () =>  { console.log("[open] connection established"); };
         socket.onclose = (event) => {
@@ -120,7 +123,7 @@ const CopyRecorderUrlButton = ({ binKey }) => {
     }
     const onClick = (e) => {
         e.preventDefault();
-        navigator.clipboard.writeText(`http://localhost:8000/record/${binKey}`);
+        navigator.clipboard.writeText(`${baseEndpoint}/record/${binKey}`);
     };
     return html`<button class="btn btn-outline-light me-2" onClick=${onClick}> Copy url </button>`;
 };
@@ -131,7 +134,7 @@ const OpenInNewTabButton = ({ binKey }) => {
         return null;
     }
     return html`
-        <a href="http://localhost:8000/record/${binKey}" target="_blank" class="btn btn-outline-light me-2">
+        <a href="${baseEndpoint}/record/${binKey}" target="_blank" class="btn btn-outline-light me-2">
             Open in a new tab
         </a>
     `;
