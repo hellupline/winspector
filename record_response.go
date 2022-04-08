@@ -46,8 +46,6 @@ type RecordResponse struct {
 	URL              string           `json:"url"`
 	Proto            string           `json:"proto"`
 	Host             string           `json:"host"`
-	RemoteAddr       string           `json:"remote_addr"`
-	RequestURI       string           `json:"request_uri"`
 	TransferEncoding []string         `json:"transfer_encoding"`
 	ContentLength    int64            `json:"content_lenght"`
 	Headers          PairResponseList `json:"headers"`
@@ -80,8 +78,6 @@ func NewRecordResponse(record Record) RecordResponse {
 		URL:              record.recordData.uRL,
 		Proto:            record.recordData.proto,
 		Host:             record.recordData.host,
-		RemoteAddr:       record.recordData.remoteAddr,
-		RequestURI:       record.recordData.requestURI,
 		TransferEncoding: record.recordData.transferEncoding,
 		ContentLength:    record.recordData.contentLength,
 		Headers:          headers,
