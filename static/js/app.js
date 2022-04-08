@@ -2,8 +2,8 @@
 // import {...} from 'https://npm.reversehttp.com/preact,preact/hooks,htm';
 import { htm, h, useState, useEffect, useRef, render } from '/static/js/modules.js';
 
-const baseHostname = 'pomegranate-winspector.haematite.dev';
-const baseEndpoint = `https://${baseHostname}`;
+const baseEndpoint = `https://pomegranate-winspector.haematite.dev`;
+const baseSocketEndpoint = `wss://pomegranate-winspector.haematite.dev`;
 
 const html = htm.bind(h);
 
@@ -44,7 +44,7 @@ const App = ({ initialBinKey }) => {
         if (ws.current !== null) {
             ws.current.close();
         }
-        const socket = new WebSocket(`ws://${baseHostname}/bin/${binKey}/watch`);
+        const socket = new WebSocket(`${baseSocketEndpoint}/bin/${binKey}/watch`);
         ws.current = socket;
         socket.onopen = () =>  { console.log("[open] connection established"); };
         socket.onclose = (event) => {
