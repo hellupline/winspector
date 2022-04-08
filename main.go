@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +24,9 @@ var binStore = map[uuid.UUID]Bin{}
 var binRecordStore = map[uuid.UUID]map[uuid.UUID]Record{}
 var binWatchStore = map[uuid.UUID]map[*websocket.Conn]bool{}
 
+//go:embed static
+var staticFS embed.FS
+
 func main() {
 	{
 		binKey := uuid.MustParse("d45a2464-4bce-4628-95be-8b8dfebe90be")
@@ -32,16 +36,17 @@ func main() {
 		binRecordStore[bin.binKey] = map[uuid.UUID]Record{}
 		binWatchStore[bin.binKey] = map[*websocket.Conn]bool{}
 	}
-	staticFileServer := http.FileServer(http.Dir("./static/"))
+	// staticFileServer := http.StripPrefix("/static", http.FileServer(http.Dir("./static/")))
+	staticFileServer := http.FileServer(http.FS(staticFS))
 	r := mux.NewRouter().StrictSlash(true)
-	r.PathPrefix("/static").Name("static").Handler(http.StripPrefix("/static", staticFileServer))
+	r.PathPrefix("/static").Name("static").Handler(staticFileServer)
 	r.Path("/").Methods(http.MethodGet).Name("root").HandlerFunc(rootHandler)
 	r.Path("/bin").Methods(http.MethodPost).Name("bin-create").HandlerFunc(binCreateHandler)
 	r.Path("/bin/{binKey}").Methods(http.MethodGet).Name("bin-read").HandlerFunc(binReadHandler)
 	r.Path("/bin/{binKey}/watch").Methods(http.MethodGet).Name("bin-watch").HandlerFunc(binWatchHandler)
 	r.Path("/bin/{binKey}/records/{recordKey}").Methods(http.MethodGet).Name("record-read").HandlerFunc(binRecordReadHandler)
 	r.PathPrefix("/record/{binKey}").Name("record-create").HandlerFunc(recordCreateHandler)
-	runServer(httpMiddlewares(r), "127.0.0.1:8000")
+	runServer(httpMiddlewares(r), "0.0.0.0:8000")
 }
 
 func httpMiddlewares(r http.Handler) http.Handler {
