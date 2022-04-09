@@ -32,6 +32,8 @@ type RecordData struct {
 	uRL              string
 	proto            string
 	host             string
+	remoteAddr       string
+	requestURI       string
 	transferEncoding []string
 	contentLength    int64
 	headers          PairList
@@ -100,6 +102,8 @@ func NewRecordData(r *http.Request) RecordData {
 		uRL:              r.URL.String(),
 		proto:            r.Proto,
 		host:             r.Host,
+		remoteAddr:       r.RemoteAddr,
+		requestURI:       r.RequestURI,
 		transferEncoding: r.TransferEncoding,
 		contentLength:    r.ContentLength,
 		headers:          headers,

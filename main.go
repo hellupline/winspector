@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"embed"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,6 +29,21 @@ var binWatchStore = map[uuid.UUID]map[*websocket.Conn]bool{}
 //go:embed static
 var staticFS embed.FS
 
+var host string
+var port string
+
+func init() {
+	var ok bool
+	host, ok = os.LookupEnv("HOST")
+	if !ok {
+		host = "127.0.0.1"
+	}
+	port, ok = os.LookupEnv("PORT")
+	if !ok {
+		port = "8000"
+	}
+}
+
 func main() {
 	{
 		binKey := uuid.MustParse("d45a2464-4bce-4628-95be-8b8dfebe90be")
@@ -36,34 +53,61 @@ func main() {
 		binRecordStore[bin.binKey] = map[uuid.UUID]Record{}
 		binWatchStore[bin.binKey] = map[*websocket.Conn]bool{}
 	}
-	// staticFileServer := http.StripPrefix("/static", http.FileServer(http.Dir("./static/")))
-	staticFileServer := http.FileServer(http.FS(staticFS))
+	recoveryHandler := handlers.RecoveryHandler(
+		handlers.PrintRecoveryStack(true),
+	)
+	corsHandler := handlers.CORS(
+		handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"}),
+		handlers.AllowedOrigins([]string{"*"}),
+		handlers.AllowedHeaders([]string{"Content-Type"}),
+	)
+	staticFileServer := http.StripPrefix("/static", http.FileServer(http.Dir("./static/")))
+	// staticFileServer := http.FileServer(http.FS(staticFS))
 	r := mux.NewRouter().StrictSlash(true)
-	r.PathPrefix("/static").Name("static").Handler(staticFileServer)
-	r.Path("/").Methods(http.MethodGet).Name("root").HandlerFunc(rootHandler)
 	r.Path("/bin").Methods(http.MethodPost).Name("bin-create").HandlerFunc(binCreateHandler)
 	r.Path("/bin/{binKey}").Methods(http.MethodGet).Name("bin-read").HandlerFunc(binReadHandler)
 	r.Path("/bin/{binKey}/watch").Methods(http.MethodGet).Name("bin-watch").HandlerFunc(binWatchHandler)
 	r.Path("/bin/{binKey}/records/{recordKey}").Methods(http.MethodGet).Name("record-read").HandlerFunc(binRecordReadHandler)
 	r.PathPrefix("/record/{binKey}").Name("record-create").HandlerFunc(recordCreateHandler)
-	runServer(httpMiddlewares(r), "0.0.0.0:8000")
+	r.PathPrefix("/static").Name("static").Handler(staticFileServer)
+	r.PathPrefix("/").Methods(http.MethodGet).Name("root").HandlerFunc(rootHandler)
+	r.Use(recoveryHandler)
+	r.Use(corsHandler)
+	r.Use(handlers.CompressHandler)
+	r.Use(handlers.ProxyHeaders)
+	r.Use(handlers.ProxyHeaders)
+	if err := walk(r); err != nil {
+		log.Print(err)
+		return
+	}
+	runServer(r, fmt.Sprintf("%s:%s", host, port))
 }
 
-func httpMiddlewares(r http.Handler) http.Handler {
-	recoveryHandler := handlers.RecoveryHandler(
-		handlers.PrintRecoveryStack(true),
-	)
-	cordsHandler := handlers.CORS(
-		handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"}),
-		handlers.AllowedOrigins([]string{"*"}),
-		handlers.AllowedHeaders([]string{"Content-Type"}),
-	)
-	handler := r
-	handler = recoveryHandler(handler)
-	handler = cordsHandler(handler)
-	// handler = handlers.CombinedLoggingHandler(os.Stdout, handler)
-	handler = handlers.CompressHandler(handler)
-	return handler
+func walk(r *mux.Router) error {
+	return r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		pathTemplate, err := route.GetPathTemplate()
+		if err != nil {
+			fmt.Println("ROUTE:", pathTemplate)
+		}
+		pathRegexp, err := route.GetPathRegexp()
+		if err == nil {
+			fmt.Println("Path regexp:", pathRegexp)
+		}
+		queriesTemplates, err := route.GetQueriesTemplates()
+		if err == nil {
+			fmt.Println("Queries templates:", strings.Join(queriesTemplates, ","))
+		}
+		queriesRegexps, err := route.GetQueriesRegexp()
+		if err == nil {
+			fmt.Println("Queries regexps:", strings.Join(queriesRegexps, ","))
+		}
+		methods, err := route.GetMethods()
+		if err == nil {
+			fmt.Println("Methods:", strings.Join(methods, ","))
+		}
+		fmt.Println()
+		return nil
+	})
 }
 
 func runServer(handler http.Handler, addr string) {
