@@ -75,39 +75,36 @@ func main() {
 	r.Use(corsHandler)
 	r.Use(handlers.CompressHandler)
 	r.Use(handlers.ProxyHeaders)
-	r.Use(handlers.ProxyHeaders)
-	if err := walk(r); err != nil {
+	if err := r.Walk(walk); err != nil {
 		log.Print(err)
-		return
+		os.Exit(1)
 	}
 	runServer(r, fmt.Sprintf("%s:%s", host, port))
 }
 
-func walk(r *mux.Router) error {
-	return r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		pathTemplate, err := route.GetPathTemplate()
-		if err != nil {
-			fmt.Println("ROUTE:", pathTemplate)
-		}
-		pathRegexp, err := route.GetPathRegexp()
-		if err == nil {
-			fmt.Println("Path regexp:", pathRegexp)
-		}
-		queriesTemplates, err := route.GetQueriesTemplates()
-		if err == nil {
-			fmt.Println("Queries templates:", strings.Join(queriesTemplates, ","))
-		}
-		queriesRegexps, err := route.GetQueriesRegexp()
-		if err == nil {
-			fmt.Println("Queries regexps:", strings.Join(queriesRegexps, ","))
-		}
-		methods, err := route.GetMethods()
-		if err == nil {
-			fmt.Println("Methods:", strings.Join(methods, ","))
-		}
-		fmt.Println()
-		return nil
-	})
+func walk(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	pathTemplate, err := route.GetPathTemplate()
+	if err != nil {
+		fmt.Println("ROUTE:", pathTemplate)
+	}
+	pathRegexp, err := route.GetPathRegexp()
+	if err == nil {
+		fmt.Println("Path regexp:", pathRegexp)
+	}
+	queriesTemplates, err := route.GetQueriesTemplates()
+	if err == nil {
+		fmt.Println("Queries templates:", strings.Join(queriesTemplates, ","))
+	}
+	queriesRegexps, err := route.GetQueriesRegexp()
+	if err == nil {
+		fmt.Println("Queries regexps:", strings.Join(queriesRegexps, ","))
+	}
+	methods, err := route.GetMethods()
+	if err == nil {
+		fmt.Println("Methods:", strings.Join(methods, ","))
+	}
+	fmt.Println()
+	return nil
 }
 
 func runServer(handler http.Handler, addr string) {

@@ -2,8 +2,9 @@
 // import {...} from 'https://npm.reversehttp.com/preact,preact/hooks,htm';
 import { htm, h, useState, useEffect, useRef, render } from '/static/js/modules.js';
 
-const baseEndpoint = `https://pomegranate-winspector.haematite.dev`;
-const baseSocketEndpoint = `wss://pomegranate-winspector.haematite.dev`;
+
+const baseEndpoint = `${window.location.protocol}//${window.location.host}`;
+const baseSocketEndpoint = `${window.location.protocol === 'https:' ? 'wss:': 'ws:' }//${window.location.host}`;
 
 const html = htm.bind(h);
 
