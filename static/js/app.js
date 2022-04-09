@@ -1,6 +1,16 @@
-// https://npm.reversehttp.com/#preact,preact/hooks,htm
-// import {...} from 'https://npm.reversehttp.com/preact,preact/hooks,htm';
-import { htm, h, useState, useEffect, useRef, render } from '/static/js/modules.js';
+// https://npm.reversehttp.com/#preact,preact/hooks,preact-router,htm,history
+// import {...} from 'https://npm.reversehttp.com/preact,preact/hooks,preact-router,htm';
+
+import {
+    render,
+    h,
+    useState,
+    useEffect,
+    useRef,
+    Router,
+    route,
+    htm,
+} from '/static/js/modules.js';
 
 
 const baseEndpoint = `${window.location.protocol}//${window.location.host}`;
@@ -8,108 +18,82 @@ const baseSocketEndpoint = `${window.location.protocol === 'https:' ? 'wss:': 'w
 
 const html = htm.bind(h);
 
-const App = ({ initialBinKey }) => {
-    const [binKey, setBinKey] = useState(initialBinKey);
-    const [recordKey, setRecordKey] = useState(null);
-    const [binData, setBinData] = useState({records: []});
-    const ws = useRef(null);
+const createBin = async () => {
+    const r = await fetch("/bin", { method: "POST" });
+    return await r.json();
+};
 
-    if (binKey === null) {
-        return null;
-    }
+const loadBin = async (binKey) => {
+    const r = await fetch(`/bin/${binKey}`, { method: "GET" });
+    return await r.json();
+};
 
-    const reloadBin = async () => {
-        const r = await fetch(`/bin/${binKey}`, { method: "GET" });
-        const data = await r.json();
-        setBinData(data);
-        return data;
+
+const websocketConnect = (binKey) => {
+    const socket = new WebSocket(`${baseSocketEndpoint}/bin/${binKey}/watch`);
+    socket.onopen = () =>  { console.log("[open] connection established"); };
+    socket.onerror = (error) => { console.log(`[error] ${error.message}`); };
+    socket.onclose = (event) => {
+        if (event.wasClean) {
+            console.log(`[close] connection closed cleanly, code=${event.code} reason=${event.reason}`);
+        } else {
+            // e.g. server process killed or network down
+            // event.code is usually 1006 in this case
+            console.log('[close] connection died');
+        }
     };
+    return socket;
+};
+
+
+const Root = () => {
+    const [binData, setBinData] = useState(null);
 
     const newBin = async () => {
-        const r = await fetch("/bin", { method: "POST" });
-        const data = await r.json();
-        setRecordKey(null);
-        setBinKey(data.bin_key);
+        const data = await createBin();
+        setBinData(null);
+        route(`/app/${data.bin_key}`);
+    };
+
+    const reloadBin = async () => {
+        if (binData === null) {
+            return;
+        }
+        const { bin_key: binKey } = binData;
+        const data = await loadBin(binKey);
         setBinData(data);
     };
 
-    useEffect(async () => {
-        const data = await reloadBin();
-        const { records } = data;
-        if (records.length > 0) {
-            setRecordKey(records[0].record_key);
-        }
-    }, [binKey]);
-
-    useEffect(async () => {
-        if (ws.current !== null) {
-            ws.current.close();
-        }
-        const socket = new WebSocket(`${baseSocketEndpoint}/bin/${binKey}/watch`);
-        ws.current = socket;
-        socket.onopen = () =>  { console.log("[open] connection established"); };
-        socket.onclose = (event) => {
-            if (event.wasClean) {
-                console.log(`[close] connection closed cleanly, code=${event.code} reason=${event.reason}`);
-            } else {
-                // e.g. server process killed or network down
-                // event.code is usually 1006 in this case
-                console.log('[close] connection died');
-            }
-        };
-        socket.onerror = (error) => { console.log(`[error] ${error.message}`); };
-        return () => { socket.close(); }
-    }, [binKey]);
-
-    useEffect(async () => {
-        if (ws.current === null) {
-            return;
-        }
-        ws.current.onmessage = (event) => {
-            console.log(`[message] data received from server: ${event.data}`);
-            const record = JSON.parse(event.data);
-            let { records } = binData;
-            records = [ record, ...records ];
-            setBinData({ ...binData, records });
-        };
-    }, [binData]);
-
-    const { records } = binData;
-    const record = recordKey === null ? null : records.find(r => r.record_key == recordKey);
-
     return html`
-        <${NavBar}
-            binKey=${binKey}
-            setBinKey=${setBinKey}
-            reloadBin=${reloadBin}
-            newBin=${newBin}
-        />
-        <${Content}
-            records=${records}
-            record=${record}
-            setRecordKey=${setRecordKey}
-        />
+        <${NavBar} binData=${binData} newBin=${newBin} reloadBin=${reloadBin} />
+        <${Router}>
+            <${App} path="/app/:binKey/:recordKey?" binData=${binData} setBinData=${setBinData} />
+            <div default></div>
+        </Router>
     `;
 };
 
 
-const NavBar = ({ binKey, setBinKey, reloadBin, newBin }) => {
-    const onInput = (e) => { setBinKey(e.target.value); };
+const NavBar = ({ binData, newBin, reloadBin }) => {
     return html`
         <header class="bg-dark text-white p-3">
             <div class="justify-content-center justify-content-lg-start align-items-center d-flex flex-wrap">
                 <ul class="col-12 col-lg-auto nav justify-content-center me-lg-auto mb-2 mb-md-0">
-                    <li class="d-md-none d-lg-block">
-                        <a href="https://github.com/hellupline/winspector" class="nav-link px-2 text-white"> wInspector </a>
+                    <li class="d-md-none d-sm-none d-none d-lg-block">
+                        <a href="/" class="nav-link px-2 text-white">
+                            wInspector
+                        </a>
+                    </li>
+                    <li class="d-md-none d-sm-none d-none d-lg-block">
+                        <a href="https://github.com/hellupline/winspector" class="nav-link px-2 text-white">
+                            github
+                        </a>
                     </li>
                 </ul>
-                <form class="col-12 col-lg-auto mb-3 mb-lg-0 me-lg-3">
-                    <input type="text" class="form-control form-control-dark" placeholder="Bin Key..." value=${binKey} onInput=${onInput} />
-                </form>
                 <div class="text-end">
-                    <${CopyRecorderUrlButton} binKey=${binKey} />
-                    <${OpenInNewTabButton} binKey=${binKey} />
-                    <${ReloadBinButton} reloadBin=${reloadBin} />
+                    <${Router}>
+                        <${BinButtons} path="/app/:binKey/:recordKey?" reloadBin=${reloadBin} />
+                    </Router>
                     <${NewBinButton} newBin=${newBin} />
                 </div>
             </div>
@@ -117,28 +101,23 @@ const NavBar = ({ binKey, setBinKey, reloadBin, newBin }) => {
     `;
 };
 
+const BinButtons = ({ binKey, reloadBin }) => {
+    return html`
+        <a href="/record/${binKey}" target="_blank" class="btn btn-outline-light me-2">
+            Open in a new tab
+        </a>
+        <${CopyRecorderUrlButton} binKey=${binKey} />
+        <${ReloadBinButton} reloadBin=${reloadBin} />
+    `;
+};
+
 
 const CopyRecorderUrlButton = ({ binKey }) => {
-    if (binKey === null) {
-        return null;
-    }
     const onClick = (e) => {
         e.preventDefault();
         navigator.clipboard.writeText(`${baseEndpoint}/record/${binKey}`);
     };
     return html`<button class="btn btn-outline-light me-2" onClick=${onClick}> Copy url </button>`;
-};
-
-
-const OpenInNewTabButton = ({ binKey }) => {
-    if (binKey === null) {
-        return null;
-    }
-    return html`
-        <a href="${baseEndpoint}/record/${binKey}" target="_blank" class="btn btn-outline-light me-2">
-            Open in a new tab
-        </a>
-    `;
 };
 
 
@@ -150,18 +129,57 @@ const ReloadBinButton = ({ reloadBin }) => {
 
 const NewBinButton = ({ newBin }) => {
     const onClick = (e) => { e.preventDefault(); newBin(); };
-    return html`<button class="btn btn-warning" onClick=${onClick}> New Bin </button>`;
+    return html`<button class="btn btn-warning" onClick=${onClick}> New </button>`;
 };
 
 
-const Content = ({ records, record, setRecordKey }) => {
+const App = ({ binKey, recordKey, binData, setBinData }) => {
+    const loadBinData = async (binKey) => {
+        const r = await fetch(`/bin/${binKey}`, { method: "GET" });
+        const data = await r.json();
+        setBinData(data);
+    };
+
+    const ws = useRef(null);
+
+    useEffect(async () => {
+        if (ws.current !== null) { ws.current.close(); }
+        loadBinData(binKey);
+        const socket = websocketConnect(binKey);
+        ws.current = socket;
+        return () => { socket.close(); }
+    }, [binKey]);
+
+    useEffect(async () => {
+        if (ws.current === null) {
+            return;
+        }
+        ws.current.onmessage = (event) => {
+            console.log(`[message] data received from server: ${event.data}`);
+            const record = JSON.parse(event.data);
+            let { records } = binData;
+            const length = records.length;
+            records = [ record, ...records ];
+            setBinData({ ...binData, records });
+            console.log(`length = ${length}`);
+            if (length === 0) {
+                route(`/app/${binKey}/${record.record_key}`);
+            }
+        };
+    }, [binData]);
+
+    if (binData === null) {
+        return null;
+    }
+    const { records } = binData;
+    const record = recordKey === "" ? null : records.find(r => r.record_key == recordKey);
     return html`
-        <div class="container-fluid">
+        <div class="container-fluid px-0">
             <div class="row justify-content-start">
                 <div class="col-lg-2 col-sm-4">
-                    <${RecordList} records=${records} setRecordKey=${setRecordKey} />
+                    <${RecordList} records=${records} />
                 </div>
-                <div class="col-lg-10 col-sm-8">
+                <div class="col-lg-10 col-sm-8 p-3">
                     <${RecordDetail} record=${record} />
                 </div>
             </div>
@@ -187,18 +205,26 @@ const RecordList = ({ records, setRecordKey }) => {
 
 
 const RecordListItem = ({ record, setRecordKey }) => {
-    const { record_key: recordKey, created_at: createdAt, method } = record;
+    const {
+        bin_key: binKey,
+        record_key: recordKey,
+        created_at: createdAt,
+        method,
+    } = record;
     const d = new Date(createdAt);
     const date = d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const time = d.toLocaleTimeString('ja-JP', { hour12: false });
-    const onClick = (e) => { e.preventDefault(); setRecordKey(recordKey); }
+    let className = "list-group-item list-group-item-action lh-tight py-3";
+    if (window.location.pathname === `/app/${binKey}/${recordKey}`) {
+        className = `${className} active`;
+    }
     return html`
-        <a href="#" class="list-group-item list-group-item-action lh-tight py-3" onClick=${onClick}>
+        <a activeClassName="active" href="/app/${binKey}/${recordKey}" class="${className}">
             <div class="justify-content-between align-items-center d-flex w-100">
                 <strong class="text-truncate mb-1">
                     <span class="badge ${httpMethodColor(method)}">
                         ${method}
-                    </span> - #${recordKey}
+                    </span> #${recordKey}
                 </strong>
             </div>
             <div class="col-10 small mb-1"> ${date} ${time} </div>
@@ -209,9 +235,14 @@ const RecordListItem = ({ record, setRecordKey }) => {
 
 const RecordDetail = ({ record }) => {
     if (record === null) {
-        return null;
+        return html`<${RecordWaiter} />`;
     }
-    const { headers, query, post_form_data: postFormData, body } = record;
+    const {
+        headers,
+        query,
+        post_form_data: postFormData,
+        body
+    } = record;
     return html`
         <div class="container-fluid pt-3">
             <div class="row justify-content-center">
@@ -238,12 +269,23 @@ const RecordDetail = ({ record }) => {
 };
 
 
+const RecordWaiter = () => {
+    return html`
+        <div class="spinner-grow" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    `;
+}
+
+
 const RequestTable = ({ record }) => {
     const {
         record_key: recordKey,
         created_at: createdAt,
         method,
         url,
+        host,
+        remote_addr: remoteAddr,
         content_lenght: contentLenght,
     } = record;
     const d = new Date(createdAt);
@@ -270,12 +312,20 @@ const RequestTable = ({ record }) => {
                         <td class="text-truncate"> ${date} ${time} </td>
                     </tr>
                     <tr>
+                        <td class="text-nowrap"> host </td>
+                        <td class="text-truncate"> ${host} </td>
+                    </tr>
+                    <tr>
+                        <td class="text-nowrap"> remote address </td>
+                        <td class="text-truncate"> ${remoteAddr} </td>
+                    </tr>
+                    <tr>
                         <td class="text-nowrap"> size </td>
                         <td class="text-truncate"> ${contentLenght} bytes </td>
                     </tr>
                     <tr>
                         <td class="text-nowrap"> id </td>
-                        <td class="text-truncate"> ${date} ${recordKey} </td>
+                        <td class="text-truncate"> ${recordKey} </td>
                     </tr>
                 </tbody>
             </table>
@@ -349,4 +399,4 @@ const httpMethodColor = (method) => {
 };
 
 
-render(html`<${App} initialBinKey="d45a2464-4bce-4628-95be-8b8dfebe90be" />`, document.body);
+render(html`<${Root} />`, document.body);

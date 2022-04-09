@@ -53,16 +53,8 @@ func main() {
 		binRecordStore[bin.binKey] = map[uuid.UUID]Record{}
 		binWatchStore[bin.binKey] = map[*websocket.Conn]bool{}
 	}
-	recoveryHandler := handlers.RecoveryHandler(
-		handlers.PrintRecoveryStack(true),
-	)
-	corsHandler := handlers.CORS(
-		handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"}),
-		handlers.AllowedOrigins([]string{"*"}),
-		handlers.AllowedHeaders([]string{"Content-Type"}),
-	)
-	staticFileServer := http.StripPrefix("/static", http.FileServer(http.Dir("./static/")))
-	// staticFileServer := http.FileServer(http.FS(staticFS))
+	// staticFileServer := http.StripPrefix("/static", http.FileServer(http.Dir("./static/")))
+	staticFileServer := http.FileServer(http.FS(staticFS))
 	r := mux.NewRouter().StrictSlash(true)
 	r.Path("/bin").Methods(http.MethodPost).Name("bin-create").HandlerFunc(binCreateHandler)
 	r.Path("/bin/{binKey}").Methods(http.MethodGet).Name("bin-read").HandlerFunc(binReadHandler)
@@ -71,15 +63,35 @@ func main() {
 	r.PathPrefix("/record/{binKey}").Name("record-create").HandlerFunc(recordCreateHandler)
 	r.PathPrefix("/static").Name("static").Handler(staticFileServer)
 	r.PathPrefix("/").Methods(http.MethodGet).Name("root").HandlerFunc(rootHandler)
-	r.Use(recoveryHandler)
-	r.Use(corsHandler)
-	r.Use(handlers.CompressHandler)
+	r.Use(recoveryMiddleware)
+	r.Use(corsMiddleware)
+	r.Use(loggingMiddleware)
 	r.Use(handlers.ProxyHeaders)
 	if err := r.Walk(walk); err != nil {
 		log.Print(err)
 		os.Exit(1)
 	}
 	runServer(r, fmt.Sprintf("%s:%s", host, port))
+}
+
+func recoveryMiddleware(next http.Handler) http.Handler {
+	recoveryHandler := handlers.RecoveryHandler(
+		handlers.PrintRecoveryStack(true),
+	)
+	return recoveryHandler(next)
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	corsHandler := handlers.CORS(
+		handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"}),
+		handlers.AllowedOrigins([]string{"*"}),
+		handlers.AllowedHeaders([]string{"Content-Type"}),
+	)
+	return corsHandler(next)
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return handlers.CombinedLoggingHandler(os.Stdout, next)
 }
 
 func walk(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
