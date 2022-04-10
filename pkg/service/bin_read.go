@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"encoding/json"
@@ -6,26 +6,27 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/hellupline/winspector/pkg/responses"
 )
 
-func binReadHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Service) BinRead(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	binKey, err := uuid.Parse(vars["binKey"])
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	bin, ok := binStore[binKey]
+	bin, ok := s.DataStore.GetBin(binKey)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	recordStore, ok := binRecordStore[bin.binKey]
+	records, ok := s.DataStore.GetRecords(binKey)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	binResponse := NewBinResponse(bin, recordStore)
+	response := responses.NewBinResponse(bin, records)
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(binResponse)
+	json.NewEncoder(w).Encode(response)
 }

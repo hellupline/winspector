@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"log"
@@ -9,19 +9,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func binWatchHandler(w http.ResponseWriter, r *http.Request) {
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+func (s *Service) BinWatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	binKey, err := uuid.Parse(vars["binKey"])
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	bin, ok := binStore[binKey]
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	watchStore, ok := binWatchStore[bin.binKey]
+	bin, ok := s.DataStore.GetBin(binKey)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -30,14 +30,13 @@ func binWatchHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	watchStore[conn] = true
-
-	go connWatcher(conn, watchStore)
+	s.DataStore.InsertBinWatcher(bin.BinKey, conn)
+	go s.wsCleanUp(bin.BinKey, conn)
 }
 
-func connWatcher(conn *websocket.Conn, watchStore map[*websocket.Conn]bool) {
+func (s *Service) wsCleanUp(binKey uuid.UUID, conn *websocket.Conn) {
 	defer func() {
-		delete(watchStore, conn)
+		s.DataStore.RemoveBinWatcher(binKey, conn)
 		conn.Close()
 	}()
 	for {

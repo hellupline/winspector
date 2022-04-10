@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"time"
@@ -7,13 +7,13 @@ import (
 )
 
 type Bin struct {
-	binKey    uuid.UUID
-	createdAt time.Time
+	BinKey    uuid.UUID
+	CreatedAt time.Time
 }
 
 func NewBin(binKey uuid.UUID, createdAt time.Time) Bin {
 	return Bin{
-		binKey:    binKey,
-		createdAt: createdAt,
+		BinKey:    binKey,
+		CreatedAt: createdAt,
 	}
 }
