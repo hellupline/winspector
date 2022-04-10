@@ -4,6 +4,7 @@ FROM golang:1.17-alpine AS build
 WORKDIR /build
 COPY go.mod go.sum ./
 COPY vendor/ vendor/
+COPY pkg/ pkg/
 COPY static/ static/
 COPY *.go ./
 ENV CGO_ENABLED=0
