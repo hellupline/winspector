@@ -81,9 +81,12 @@ func (s *Service) addSubscriber(sub *subscriber, binKey uuid.UUID) {
 	defer s.subscribersMutex.Unlock()
 	subs, ok := s.subscribers[binKey]
 	if !ok {
-		return
+		s.subscribers[binKey] = map[*subscriber]struct{}{}
+		subs = s.subscribers[binKey]
+		log.Printf("sockets for binKey=%s not found, created", binKey)
 	}
 	subs[sub] = struct{}{}
+	log.Println(s.subscribers[binKey])
 }
 
 func (s *Service) deleteSubscriber(sub *subscriber, binKey uuid.UUID) {
@@ -91,6 +94,7 @@ func (s *Service) deleteSubscriber(sub *subscriber, binKey uuid.UUID) {
 	defer s.subscribersMutex.Unlock()
 	subs, ok := s.subscribers[binKey]
 	if !ok {
+		log.Printf("sockets for binKey=%s not found, cant delete subscribers", binKey)
 		return
 	}
 	delete(subs, sub)
@@ -102,6 +106,7 @@ func (s *Service) publish(msg []byte, binKey uuid.UUID) {
 	s.publishLimiter.Wait(context.Background())
 	subs, ok := s.subscribers[binKey]
 	if !ok {
+		log.Printf("sockets for binKey=%s not found, cant publish", binKey)
 		return
 	}
 	for sub := range subs {
