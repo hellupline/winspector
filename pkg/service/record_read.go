@@ -21,12 +21,12 @@ func (s *Service) RecordRead(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	bin, ok := s.DataStore.GetBin(binKey)
+	bin, ok := s.dataStore.GetBin(binKey)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	record, ok := s.DataStore.GetRecord(bin.BinKey, recordKey)
+	record, ok := s.dataStore.GetRecord(bin.BinKey, recordKey)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return

@@ -1,50 +1,117 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
+	"nhooyr.io/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
+const connSlow = "connection too slow to keep up with messages"
+const subscriberMessageBuffer = 16
 
 func (s *Service) BinWatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	binKey, err := uuid.Parse(vars["binKey"])
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	bin, ok := s.DataStore.GetBin(binKey)
+	bin, ok := s.dataStore.GetBin(binKey)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	conn, err := upgrader.Upgrade(w, r, nil)
+	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		return
 	}
-	s.DataStore.InsertBinWatcher(bin.BinKey, conn)
-	go s.wsCleanUp(bin.BinKey, conn)
+	defer c.Close(websocket.StatusInternalError, "")
+	err = s.subscribe(r.Context(), c, bin.BinKey)
+	if errors.Is(err, context.Canceled) {
+		return
+	}
+	if isCloseStatus(err, websocket.StatusNormalClosure, websocket.StatusGoingAway) {
+		return
+	}
+	if err != nil {
+		log.Println(err)
+		return
+	}
 }
 
-func (s *Service) wsCleanUp(binKey uuid.UUID, conn *websocket.Conn) {
-	defer func() {
-		s.DataStore.RemoveBinWatcher(binKey, conn)
-		conn.Close()
-	}()
+type subscriber struct {
+	msgs      chan []byte
+	closeSlow func()
+}
+
+func (s *Service) subscribe(ctx context.Context, c *websocket.Conn, binKey uuid.UUID) error {
+	ctx = c.CloseRead(ctx)
+	sub := &subscriber{
+		msgs: make(chan []byte, subscriberMessageBuffer),
+		closeSlow: func() {
+			c.Close(websocket.StatusPolicyViolation, connSlow)
+		},
+	}
+	s.addSubscriber(sub, binKey)
+	defer s.deleteSubscriber(sub, binKey)
 	for {
-		if _, _, err := conn.ReadMessage(); err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNoStatusReceived) {
-				log.Printf("error: %v", err)
+		select {
+		case msg := <-sub.msgs:
+			err := writeTimeout(ctx, time.Second*5, c, msg)
+			if err != nil {
+				return err
 			}
-			break
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
+}
+
+func (s *Service) addSubscriber(sub *subscriber, binKey uuid.UUID) {
+	s.subscribersMutex.Lock()
+	defer s.subscribersMutex.Unlock()
+	s.subscribers[sub] = struct{}{}
+}
+
+func (s *Service) deleteSubscriber(sub *subscriber, binKey uuid.UUID) {
+	s.subscribersMutex.Lock()
+	defer s.subscribersMutex.Unlock()
+	delete(s.subscribers, sub)
+}
+
+func (s *Service) publish(msg []byte, binKey uuid.UUID) {
+	s.subscribersMutex.Lock()
+	defer s.subscribersMutex.Unlock()
+	s.publishLimiter.Wait(context.Background())
+	for sub := range s.subscribers {
+		select {
+		case sub.msgs <- msg:
+		default:
+			go sub.closeSlow()
+		}
+	}
+}
+
+func isCloseStatus(err error, expectedCodes ...websocket.StatusCode) bool {
+	closeStatus := websocket.CloseStatus(err)
+	for _, code := range expectedCodes {
+		if closeStatus == code {
+			return true
+		}
+	}
+	return false
+}
+
+func writeTimeout(ctx context.Context, timeout time.Duration, c *websocket.Conn, msg []byte) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	return c.Write(ctx, websocket.MessageText, msg)
 }

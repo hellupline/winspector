@@ -14,7 +14,7 @@ func (s *Service) BinCreate(w http.ResponseWriter, r *http.Request) {
 	binKey := uuid.New()
 	now := time.Now()
 	bin := models.NewBin(binKey, now)
-	s.DataStore.InsertBin(bin)
+	s.dataStore.InsertBin(bin)
 	response := responses.NewBinResponse(bin, nil)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)

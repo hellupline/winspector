@@ -16,12 +16,12 @@ func (s *Service) BinRead(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	bin, ok := s.DataStore.GetBin(binKey)
+	bin, ok := s.dataStore.GetBin(binKey)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	records, ok := s.DataStore.GetRecords(binKey)
+	records, ok := s.dataStore.GetRecords(binKey)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return

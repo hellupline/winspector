@@ -19,14 +19,15 @@ func (d *DataStore) GetRecords(binKey uuid.UUID) ([]models.Record, bool) {
 	return records, true
 }
 
-func (d *DataStore) InsertRecord(record models.Record) {
+func (d *DataStore) InsertRecord(record models.Record) bool {
 	d.Lock()
 	defer d.Unlock()
 	recordStore, ok := d.BinRecordStore[record.BinKey]
 	if !ok {
-		return
+		return false
 	}
 	recordStore[record.RecordKey] = record
+	return true
 }
 
 func (d *DataStore) GetRecord(binKey, recordKey uuid.UUID) (models.Record, bool) {

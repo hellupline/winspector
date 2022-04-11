@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"github.com/hellupline/winspector/pkg/models"
 	"github.com/hellupline/winspector/pkg/responses"
 )
@@ -20,7 +19,7 @@ func (s *Service) RecordCreate(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	bin, ok := s.DataStore.GetBin(binKey)
+	bin, ok := s.dataStore.GetBin(binKey)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -29,36 +28,13 @@ func (s *Service) RecordCreate(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	requestData := models.NewRequestData(r)
 	record := models.NewRecord(binKey, recordKey, now, requestData)
-	s.DataStore.InsertRecord(record)
+	s.dataStore.InsertRecord(record)
 	w.WriteHeader(http.StatusCreated)
-	go s.wsBroadcast(bin.BinKey, record)
-}
-
-func (s *Service) wsBroadcast(binKey uuid.UUID, record models.Record) {
-	sockets, ok := s.DataStore.GetBinWatchers(binKey)
-	if !ok {
+	response := responses.NewRecordResponse(record)
+	data, err := json.Marshal(response)
+	if err != nil {
+		log.Println(err)
 		return
 	}
-	for _, conn := range sockets {
-		writer, err := conn.NextWriter(websocket.TextMessage)
-		if err != nil {
-			log.Println(err)
-			s.DataStore.RemoveBinWatcher(binKey, conn)
-			conn.Close()
-			continue
-		}
-		response := responses.NewRecordResponse(record)
-		if err := json.NewEncoder(writer).Encode(response); err != nil {
-			log.Println(err)
-			s.DataStore.RemoveBinWatcher(binKey, conn)
-			conn.Close()
-			continue
-		}
-		if err := writer.Close(); err != nil {
-			log.Println(err)
-			s.DataStore.RemoveBinWatcher(binKey, conn)
-			conn.Close()
-			continue
-		}
-	}
+	s.publish(data, bin.BinKey)
 }

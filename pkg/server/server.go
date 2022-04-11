@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -64,34 +65,33 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 }
 
 func RunServer(handler http.Handler, addr string) {
-	srv := &http.Server{
-		Handler: handler,
-		Addr:    addr,
-		// Good practice: enforce timeouts for servers you create!
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatal(err)
 	}
+	log.Printf("listening on http://%v", l.Addr())
+	s := &http.Server{
+		Handler:      handler,
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+	}
+	errc := make(chan error, 1)
 	go func() {
-		log.Printf("serving at: http://%s/", addr)
-		if err := srv.ListenAndServe(); err != nil {
-			log.Println(err)
-		}
+		errc <- s.Serve(l)
 	}()
-	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
-	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	// Block until we receive our signal.
-	<-c
-	// Create a deadline to wait for.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt)
+	select {
+	case err := <-errc:
+		log.Printf("failed to serve: %v", err)
+	case sig := <-sigs:
+		log.Printf("terminating: %v", sig)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	// Doesn't block if no connections, but will otherwise wait
-	// until the timeout deadline.
-	srv.Shutdown(ctx)
-	// Optionally, you could run srv.Shutdown in a goroutine and block on
-	// <-ctx.Done() if your application should wait for other services
-	// to finalize based on context cancellation.
+	if err := s.Shutdown(ctx); err != nil {
+		log.Println(err)
+	}
 	log.Println("shutting down")
 	os.Exit(0)
 }

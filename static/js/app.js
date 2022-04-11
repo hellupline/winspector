@@ -161,7 +161,6 @@ const App = ({ binKey, recordKey, binData, setBinData }) => {
             const length = records.length;
             records = [ record, ...records ];
             setBinData({ ...binData, records });
-            console.log(`length = ${length}`);
             if (length === 0) {
                 route(`/app/${binKey}/${record.record_key}`);
             }
