@@ -10,9 +10,6 @@ github.com/gorilla/handlers
 # github.com/gorilla/mux v1.8.0
 ## explicit; go 1.12
 github.com/gorilla/mux
-# github.com/gorilla/websocket v1.5.0
-## explicit; go 1.12
-github.com/gorilla/websocket
 # github.com/klauspost/compress v1.10.3
 ## explicit; go 1.13
 github.com/klauspost/compress/flate
