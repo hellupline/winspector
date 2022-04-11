@@ -53,6 +53,7 @@ type subscriber struct {
 }
 
 func (s *Service) subscribe(ctx context.Context, c *websocket.Conn, binKey uuid.UUID) error {
+	go ping(ctx, c)
 	ctx = c.CloseRead(ctx)
 	sub := &subscriber{
 		msgs: make(chan []byte, subscriberMessageBuffer),
@@ -108,6 +109,17 @@ func isCloseStatus(err error, expectedCodes ...websocket.StatusCode) bool {
 		}
 	}
 	return false
+}
+
+func ping(ctx context.Context, c *websocket.Conn) {
+	for {
+		for range time.Tick(time.Second * 60) {
+			if err := c.Ping(ctx); err != nil {
+				log.Println(err)
+				return
+			}
+		}
+	}
 }
 
 func writeTimeout(ctx context.Context, timeout time.Duration, c *websocket.Conn, msg []byte) error {
