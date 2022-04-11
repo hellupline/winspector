@@ -79,20 +79,32 @@ func (s *Service) subscribe(ctx context.Context, c *websocket.Conn, binKey uuid.
 func (s *Service) addSubscriber(sub *subscriber, binKey uuid.UUID) {
 	s.subscribersMutex.Lock()
 	defer s.subscribersMutex.Unlock()
-	s.subscribers[sub] = struct{}{}
+	subs, ok := s.subscribers[binKey]
+	if !ok {
+		return
+	}
+	subs[sub] = struct{}{}
 }
 
 func (s *Service) deleteSubscriber(sub *subscriber, binKey uuid.UUID) {
 	s.subscribersMutex.Lock()
 	defer s.subscribersMutex.Unlock()
-	delete(s.subscribers, sub)
+	subs, ok := s.subscribers[binKey]
+	if !ok {
+		return
+	}
+	delete(subs, sub)
 }
 
 func (s *Service) publish(msg []byte, binKey uuid.UUID) {
 	s.subscribersMutex.Lock()
 	defer s.subscribersMutex.Unlock()
 	s.publishLimiter.Wait(context.Background())
-	for sub := range s.subscribers {
+	subs, ok := s.subscribers[binKey]
+	if !ok {
+		return
+	}
+	for sub := range subs {
 		select {
 		case sub.msgs <- msg:
 		default:

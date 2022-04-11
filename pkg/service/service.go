@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/hellupline/winspector/pkg/datastore"
 	"golang.org/x/time/rate"
@@ -14,7 +15,7 @@ import (
 type Service struct {
 	dataStore        *datastore.DataStore
 	staticFS         embed.FS
-	subscribers      map[*subscriber]struct{}
+	subscribers      map[uuid.UUID]map[*subscriber]struct{}
 	subscribersMutex sync.Mutex
 	publishLimiter   *rate.Limiter
 }
@@ -23,7 +24,7 @@ func NewService(dataStore *datastore.DataStore, embedFS embed.FS) *Service {
 	return &Service{
 		dataStore:      dataStore,
 		staticFS:       embedFS,
-		subscribers:    map[*subscriber]struct{}{},
+		subscribers:    map[uuid.UUID]map[*subscriber]struct{}{},
 		publishLimiter: rate.NewLimiter(rate.Every(time.Millisecond*100), 8),
 	}
 }
